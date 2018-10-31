@@ -82,38 +82,7 @@ class AmodalEval:
         self.evalImgs = []   # per-image per-category evaluation results
         self.queries = []
         self.eval     = {}   # accumulated evaluation results
-    
-    def evaluate(self):
-        '''
-        Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
-        :return: None
-        '''
-        tic = time.time()
-        #print 'Running per image evaluation...'
-        p = self.params
-        p.imgIds = list(np.unique(p.imgIds))
-        if p.useCats:
-            p.catIds = list(np.unique(p.catIds))
-        p.maxDets = sorted(p.maxDets)
-        self.params=p
-        self._prepare()
-        # loop through images, area range, max detection number
-        catIds = p.catIds if p.useCats else [-1]
-        computeIoU = self.computeIoU
-        self.ious = {(imgId, catId): computeIoU(imgId, catId) \
-                        for imgId in p.imgIds
-                        for catId in catIds}
-        evaluateImg = self.evaluateImg
-        maxDet = p.maxDets[-1]
-        for catId in catIds:
-            for areaRng in p.areaRng:
-                for imgId in p.imgIds:
-                    evalRes = evaluateImg(imgId, catId, areaRng, maxDet, p.occRng)
-                    self.evalImgs.append(evalRes)
-      
-        self._paramsEval = copy.deepcopy(self.params)
-        toc = time.time()
-        print 'DONE (t=%0.2fs).'%(toc-tic)
+
 
     def computeIoU(self, imgId, catId):
         p = self.params
@@ -147,6 +116,7 @@ class AmodalEval:
         ious = mask.iou(d,g,iscrowd)
         return ious
 
+
     def exportDtFile(self, fname):
         # save the matched dt, as a field of gt's regions. Then export the file again. 
         if not self.evalImgs:
@@ -160,6 +130,7 @@ class AmodalEval:
         with open(fname, 'wb') as output:
             json.dump(res, output)
         return res
+
 
     def evaluateImg(self, imgId, catId, aRng, maxDet, oRng):
         '''
@@ -206,37 +177,42 @@ class AmodalEval:
         T = len(p.iouThrs)
         G = len(gt)
         D = len(dt)
-        gtm  = np.zeros((T,G))
-        dtm  = np.zeros((T,D))
+        gt_with_matched_dt  = np.zeros((T,G))
+        dt_with_matched_gt  = np.zeros((T,D))
         gtIg = np.array([g['_ignore'] for g in gt])
         dtIg = np.zeros((T,D))
         if not len(ious)==0:
             for tind, t in enumerate(p.iouThrs):
                 for dind, d in enumerate(dt):
                     iou = min([t,1-1e-10])
-                    m   = -1
+                    matched_gt_idx   = -1
                     for gind, g in enumerate(gt):
-                        if gtm[tind,gind]>0 and not iscrowd[gind]:
+                        # if current gt is already matched with a pred, move on to the next gt
+                        if gt_with_matched_dt[tind,gind]>0 and not iscrowd[gind]:
                             continue
-                        if m>-1 and gtIg[m]==0 and gtIg[gind]==1:
+                        # if there is no match yet and current gt is to be ignored, don't consider this gt
+                        if matched_gt_idx>-1 and gtIg[matched_gt_idx]==0 and gtIg[gind]==1:
                             break
+                        # if the IoU between current pred and current gt is less than the minimum of 
+                        # (threshold, current record max iou between current pred and all gt), move on 
+                        # to the next gt
                         if ious[dind,gind] < iou:
                             continue
                         iou=ious[dind,gind]
-                        m=gind
-                    if m ==-1:
+                        matched_gt_idx=gind
+                    if matched_gt_idx ==-1:
                         continue
-                    dtIg[tind,dind] = gtIg[m]
-                    dtm[tind,dind]  = gt[m]['order']
-                    gtm[tind,m]  = d['id']
+                    dtIg[tind,dind] = gtIg[matched_gt_idx]
+                    dt_with_matched_gt[tind,dind]  = gt[matched_gt_idx]['order']
+                    gt_with_matched_dt[tind,matched_gt_idx]  = d['id']
         
-        gtm = gtm[:,np.array(inv_gtind)]
+        gt_with_matched_dt = gt_with_matched_dt[:,np.array(inv_gtind)]
         # set unmatched detections outside of area range to ignore
         a = np.array([d['area']<aRng[0] or d['area']>aRng[1] for d in dt]).reshape((1, len(dt)))
-        dtIg = np.logical_or(dtIg, np.logical_and(dtm==0, np.repeat(a,T,0)))
+        dtIg = np.logical_or(dtIg, np.logical_and(dt_with_matched_gt==0, np.repeat(a,T,0)))
         # store results for given image and category
         # save matching ids into self._gts
-        self._gts[imgId, catId][0]['gtm'] = gtm.tolist()
+        self._gts[imgId, catId][0]['gt_with_matched_dt'] = gt_with_matched_dt.tolist()
         return {
                 'image_id':     imgId,
                 'category_id':  catId,
@@ -244,13 +220,47 @@ class AmodalEval:
                 'maxDet':       maxDet,
                 'dtIds':        [d['id'] for d in dt],
                 'gtIds':        [g['order'] for g in gt],
-                'dtMatches':    dtm,
-                'gtMatches':    gtm,
+                'dtMatches':    dt_with_matched_gt,
+                'gtMatches':    gt_with_matched_dt,
                 'dtScores':     [d['score'] for d in dt],
                 'gtIgnore':     gtIg,
                 'dtIgnore':     dtIg,
             }
 
+
+    def evaluate(self):
+        '''
+        Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
+        :return: None
+        '''
+        tic = time.time()
+        #print 'Running per image evaluation...'
+        p = self.params
+        p.imgIds = list(np.unique(p.imgIds))
+        if p.useCats:
+            p.catIds = list(np.unique(p.catIds))
+        p.maxDets = sorted(p.maxDets)
+        self.params=p
+        self._prepare()
+        # loop through images, area range, max detection number
+        catIds = p.catIds if p.useCats else [-1]
+        computeIoU = self.computeIoU
+        self.ious = {(imgId, catId): computeIoU(imgId, catId) \
+                        for imgId in p.imgIds
+                        for catId in catIds}
+        evaluateImg = self.evaluateImg
+        maxDet = p.maxDets[-1]
+        for catId in catIds:
+            for areaRng in p.areaRng:
+                for imgId in p.imgIds:
+                    evalRes = evaluateImg(imgId, catId, areaRng, maxDet, p.occRng)
+                    self.evalImgs.append(evalRes)
+      
+        self._paramsEval = copy.deepcopy(self.params)
+        toc = time.time()
+        print 'DONE (t=%0.2fs).'%(toc-tic)
+    
+    
     def accumulate(self, p = None):
         '''
         Accumulate per image evaluation results and store the result in self.eval
@@ -301,14 +311,14 @@ class AmodalEval:
                     # different sorting method generates slightly different results.
                     # mergesort is used to be consistent as Matlab implementation.
                     inds = np.argsort(-dtScores, kind='mergesort')
-                    dtm  = np.concatenate([e['dtMatches'][:,0:maxDet] for e in E], axis=1)[:,inds]
+                    dt_with_matched_gt  = np.concatenate([e['dtMatches'][:,0:maxDet] for e in E], axis=1)[:,inds]
                     dtIg = np.concatenate([e['dtIgnore'][:,0:maxDet]  for e in E], axis=1)[:,inds]
                     gtIg = np.concatenate([e['gtIgnore']  for e in E])
                     npig = len([ig for ig in gtIg if ig == 0])
                     if npig == 0:
                         continue
-                    tps = np.logical_and(               dtm,  np.logical_not(dtIg) )
-                    fps = np.logical_and(np.logical_not(dtm), np.logical_not(dtIg) )
+                    tps = np.logical_and(               dt_with_matched_gt,  np.logical_not(dtIg) )
+                    fps = np.logical_and(np.logical_not(dt_with_matched_gt), np.logical_not(dtIg) )
                     tp_sum = np.cumsum(tps, axis=1).astype(dtype=np.float)
                     fp_sum = np.cumsum(fps, axis=1).astype(dtype=np.float)
 
