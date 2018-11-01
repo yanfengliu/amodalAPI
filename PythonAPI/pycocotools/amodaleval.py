@@ -33,6 +33,7 @@ class AmodalEval:
             self.params.imgIds = sorted(amodalGt.getImgIds())
             self.params.catIds = [1]
 
+
     def _prepare(self):
         '''
         Prepare ._gts and ._dts for evaluation based on params
@@ -327,6 +328,10 @@ class AmodalEval:
                         fp = np.array(fp)
                         nd = len(tp)
                         rc = tp / npig
+                        # np.spacing(1) returns the difference between the actual value of the 
+                        # binary representation of 1 and the mathematical 1. It is a value small
+                        # enough such that there should be no representable number between 
+                        # 1 - np.spacing(1) and 1
                         pr = tp / (fp+tp+np.spacing(1))
                         q  = np.zeros((R,))
                         
