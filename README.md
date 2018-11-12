@@ -1,6 +1,6 @@
 # Semantic Amodal Segmentation dataset and API
 
-**This is a forked version of Amodal API. The original Amodal API is only compatible with Python 2. This version is compatible with Python 3 and Windows.** This is the Python API code for the amodal segmentation dataset proposed in [Semantic Amodal Segmentation](https://arxiv.org/abs/1509.01329) (CVPR 2017). This API code is built on [COCO API](https://github.com/pdollar/coco), **which does not support Windows and the authors are not planning on supporting it in the future. However, there is simple fix that works for both COCO API and Amodal API.**
+**This is a forked version of Amodal API. The original Amodal API is only compatible with Python 2. This version is compatible with Python 3 and Windows.** This is the Python API code for the amodal segmentation dataset proposed in [Semantic Amodal Segmentation](https://arxiv.org/abs/1509.01329) (CVPR 2017). This API code is built on [COCO API](https://github.com/pdollar/coco), **which does not support Windows and the authors are not planning on supporting it in the future. However, there is a simple fix that works for both COCO API and Amodal API.**
 
 ## setup
 
