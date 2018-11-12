@@ -19,15 +19,15 @@ class AmodalEval:
         '''
         self.amodalGt   = amodalGt              # ground truth amodal API
         self.amodalDt   = amodalDt              # detections amodal API
-        self.params   = {}                  # evaluation parameters
-        self.evalImgs = defaultdict(list)   # per-image per-category evaluation results [KxAxI] elements
-        self.eval     = {}                  # accumulated evaluation results
-        self._gts = defaultdict(list)       # gt for evaluation
-        self._dts = defaultdict(list)       # dt for evaluation
-        self.params = Params()              # parameters
-        self._paramsEval = {}               # parameters for evaluation
-        self.stats = []                     # result summarization
-        self.ious = {}                      # ious between all gts and dts
+        self.params   = {}                      # evaluation parameters
+        self.evalImgs = defaultdict(list)       # per-image per-category evaluation results [KxAxI] elements
+        self.eval     = {}                      # accumulated evaluation results
+        self._gts = defaultdict(list)           # gt for evaluation
+        self._dts = defaultdict(list)           # dt for evaluation
+        self.params = Params()                  # parameters
+        self._paramsEval = {}                   # parameters for evaluation
+        self.stats = []                         # result summarization
+        self.ious = {}                          # ious between all gts and dts
         if not amodalGt is None:
             self.params.imgIds = sorted(amodalGt.getImgIds())
             self.params.catIds = [1]
@@ -47,6 +47,7 @@ class AmodalEval:
                     if type(region['segmentation']) == list:
                         # format is xyxy, convert to RLE
                         region['segmentation'] = mask.frPyObjects([region['segmentation']], t['height'], t['width'])
+                        region['segmentation'][0]['counts'] = region['segmentation'][0]['counts'].decode('utf-8')
                         if len(region['segmentation']) == 1:
                             region['segmentation'] = region['segmentation'][0]
                         else:
@@ -57,13 +58,15 @@ class AmodalEval:
                             region['area'] = mask.area([region['segmentation']])[0]
                     elif type(region['segmentation']) == dict and type(region['segmentation']['counts']) == list:
                         region['segmentation'] = mask.frPyObjects([region['segmentation']],t['height'],t['width'])[0]
+                        region['segmentation']['counts'] = region['segmentation']['counts'].decode('utf-8')
                     elif type(region['segmentation']) == dict and \
-                        type(region['segmentation']['counts'] == str or type(region['segmentation']['counts']) == bytes):
+                        type(region['segmentation']['counts']) == str or type(region['segmentation']['counts']) == bytes:
                         # Python 3 renamed the unicode type to str, the old str type has been replaced by bytes.
                         # format is already RLE, do nothing
                         if 'area' not in region:
                             region['area'] = mask.area([region['segmentation']])[0]
                     else:
+                        print('???')
                         raise Exception('segmentation format not supported.')
         p = self.params
         gts=self.amodalGt.loadAnns(self.amodalGt.getAnnIds(imgIds=p.imgIds))
@@ -123,7 +126,7 @@ class AmodalEval:
         if not self.evalImgs:
             print('Please run evaluate() first')
         res = []
-        for key, item in self._gts.iteritems():
+        for _, item in self._gts.items():
             gt = item
             while type(gt) == list:
                 gt = gt[0]
@@ -161,7 +164,7 @@ class AmodalEval:
                 g['_ignore'] = 1
 
         # sort dt highest score first, sort gt ignore last
-        gtind = [ind for (ind, g) in sorted(enumerate(gt), key=lambda ind, g: g['_ignore']) ]
+        gtind = [g[0] for g in sorted(enumerate(gt), key=lambda g: g[1]['_ignore']) ]
         def inv(perm):
             inverse = [0] * len(perm)
             for i, p in enumerate(perm):
@@ -305,7 +308,7 @@ class AmodalEval:
                 Na = a0*I0
                 for m, maxDet in enumerate(m_list): # length(4)
                     E = [self.evalImgs[Nk+Na+i] for i in i_list]
-                    E = filter(None, E)
+                    E = list(filter(None, E))
                     if len(E) == 0:
                         continue
                     dtScores = np.concatenate([e['dtScores'][0:maxDet] for e in E])

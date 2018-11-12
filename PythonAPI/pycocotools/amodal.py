@@ -134,7 +134,6 @@ class Amodal(COCO):
             return 0
         ax = plt.gca()
         polygons = []
-        lines = []
         color = []
         for ann in reversed(anns['regions']):
             c = np.zeros([1, 3]).tolist()[0]
