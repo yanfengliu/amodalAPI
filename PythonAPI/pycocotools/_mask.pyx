@@ -119,7 +119,9 @@ def _frString(rleObjs):
     cdef bytes py_string
     cdef char* c_string
     for i, obj in enumerate(rleObjs):
-        py_string = bytes(obj['counts'].encode('UTF-8'))
+        # py_string = bytes(obj['counts'].encode('UTF-8'))
+        # py_string = obj['counts'].encode('UTF-8')
+        py_string = str(obj['counts']).encode('UTF-8')
         c_string = py_string
         rleFrString( <RLE*> &Rs._R[i], <char*> c_string, obj['size'][0], obj['size'][1] )
     return Rs
@@ -138,7 +140,7 @@ def decode(rleObjs):
     cdef RLEs Rs = _frString(rleObjs)
     h, w, n = Rs._R[0].h, Rs._R[0].w, Rs._n
     masks = Masks(h, w, n)
-    rleDecode( <RLE*>Rs._R, masks._mask, n );
+    rleDecode( <RLE*>Rs._R, masks._mask, n )
     return np.array(masks)
 
 def minus(rleObjs):
