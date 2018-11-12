@@ -98,7 +98,6 @@ void rleArea( const RLE *R, siz n, uint *a ) {
 }
 
 void rleIou( RLE *dt, RLE *gt, siz m, siz n, byte *iscrowd, double *o ) {
-  printf("in rleIou");
   siz g, d; BB db, gb; int crowd;
   db=malloc(sizeof(double)*m*4); rleToBbox(dt,db,m);
   gb=malloc(sizeof(double)*n*4); rleToBbox(gt,gb,n);
@@ -110,7 +109,6 @@ void rleIou( RLE *dt, RLE *gt, siz m, siz n, byte *iscrowd, double *o ) {
     ca=dt[d].cnts[0]; ka=dt[d].m; va=vb=0;
     cb=gt[g].cnts[0]; kb=gt[g].m; a=b=1; i=u=0; ct=1;
     while( ct>0 ) {
-      printf("ct = %d", ct);
       c=umin(ca,cb); if(va||vb) { u+=c; if(va&&vb) i+=c; } ct=0;
       ca-=c; if(!ca && a<ka) { ca=dt[d].cnts[a++]; va=!va; } ct+=ca;
       cb-=c; if(!cb && b<kb) { cb=gt[g].cnts[b++]; vb=!vb; } ct+=cb;
