@@ -1,12 +1,13 @@
 # Semantic Amodal Segmentation dataset and API
 
-This is the Python API code for the amodal segmentation dataset proposed in [Semantic Amodal Segmentation](https://arxiv.org/abs/1509.01329) (CVPR 2017). This API code is built on [COCO API](https://github.com/pdollar/coco).
+**This is a forked version of Amodal API. The original Amodal API is only compatible with Python 2. This version is compatible with Python 3 and Windows.** This is the Python API code for the amodal segmentation dataset proposed in [Semantic Amodal Segmentation](https://arxiv.org/abs/1509.01329) (CVPR 2017). This API code is built on [COCO API](https://github.com/pdollar/coco), **which does not support Windows and the authors are not planning on supporting it in the future. However, there is simple fix that works for both COCO API and Amodal API.**
 
 ## setup
 
 1. git clone and compile:
   * ```git clone https://github.com/wakeupbuddy/amodalAPI```
   * ```cd PythonAPI; python setup.py build_ext install; cd ..```
+  * Note that on Windows, an error will pop up if `setup.py` is run as is. This can be easily fixed by opening `setup.py` and removing `extra_compile_args=['-Wno-cpp', '-Wno-unused-function', '-std=c99'],`
 
 2. create soft link for coco/bsds images:
   * ```ln -s /your/coco/images ./images```
