@@ -13,74 +13,38 @@ uint umin( uint a, uint b ) { return (a<b) ? a : b; }
 uint umax( uint a, uint b ) { return (a>b) ? a : b; }
 
 void rleInit( RLE *R, siz h, siz w, siz m, uint *cnts ) {
-  R->h=h; 
-  R->w=w; 
-  R->m=m; 
-  R->cnts=(m==0)?0:malloc(sizeof(uint)*m);
-  siz j; 
-  if(cnts){
-    for(j=0; j<m; j++){
-      R->cnts[j]=cnts[j];
-    }
-  }
+  R->h=h; R->w=w; R->m=m; R->cnts=(m==0)?0:malloc(sizeof(uint)*m);
+  siz j; if(cnts) for(j=0; j<m; j++) R->cnts[j]=cnts[j];
 }
 
 void rleFree( RLE *R ) {
-  free(R->cnts); 
-  R->cnts=0;
+  free(R->cnts); R->cnts=0;
 }
 
 void rlesInit( RLE **R, siz n ) {
-  siz i; 
-  *R = (RLE*) malloc(sizeof(RLE)*n);
-  for(i=0; i<n; i++){
-    rleInit((*R)+i,0,0,0,0);
-  }
+  siz i; *R = (RLE*) malloc(sizeof(RLE)*n);
+  for(i=0; i<n; i++) rleInit((*R)+i,0,0,0,0);
 }
 
 void rlesFree( RLE **R, siz n ) {
-  siz i;
-  for(i=0; i<n; i++){
-    rleFree((*R)+i); 
-    free(*R); *R=0;
-  } 
+  siz i; for(i=0; i<n; i++) rleFree((*R)+i); free(*R); *R=0;
 }
 
 void rleEncode( RLE *R, const byte *M, siz h, siz w, siz n ) {
-  siz i, j, k, a=w*h; 
-  uint c, *cnts; 
-  byte p;
+  siz i, j, k, a=w*h; uint c, *cnts; byte p;
   cnts = malloc(sizeof(uint)*(a+1));
   for(i=0; i<n; i++) {
-    const byte *T=M+a*i; 
-    k=0; 
-    p=0; 
-    c=0;
-    for(j=0; j<a; j++) { 
-      if(T[j]!=p) { 
-        cnts[k++]=c; 
-        c=0; 
-        p=T[j]; 
-      } 
-      c++; 
-    }
-    cnts[k++]=c; 
-    rleInit(R+i,h,w,k,cnts);
+    const byte *T=M+a*i; k=0; p=0; c=0;
+    for(j=0; j<a; j++) { if(T[j]!=p) { cnts[k++]=c; c=0; p=T[j]; } c++; }
+    cnts[k++]=c; rleInit(R+i,h,w,k,cnts);
   }
   free(cnts);
 }
 
 void rleDecode( const RLE *R, byte *M, siz n ) {
-  siz i, j, k; 
-  for( i=0; i<n; i++ ) {
-    byte v=0; 
-    for( j=0; j<R[i].m; j++ ) {
-      for( k=0; k<R[i].cnts[j]; k++ ) {
-        *(M++)=v; 
-        v=!v;
-      }
-    }
-  }
+  siz i, j, k; for( i=0; i<n; i++ ) {
+    byte v=0; for( j=0; j<R[i].m; j++ ) {
+      for( k=0; k<R[i].cnts[j]; k++ ) *(M++)=v; v=!v; }}
 }
 
 void rleMerge( const RLE *R, RLE *M, siz n, int intersect ) {
@@ -129,81 +93,33 @@ void rleMinus( const RLE *R, RLE *M, siz n) {
 
 
 void rleArea( const RLE *R, siz n, uint *a ) {
-  siz i, j; 
-  for( i=0; i<n; i++ ) {
-    a[i]=0; 
-    for( j=1; j<R[i].m; j+=2 ){
-      a[i]+=R[i].cnts[j]; 
-    }
-  } 
+  siz i, j; for( i=0; i<n; i++ ) {
+    a[i]=0; for( j=1; j<R[i].m; j+=2 ) a[i]+=R[i].cnts[j]; }
 }
 
 void rleIou( RLE *dt, RLE *gt, siz m, siz n, byte *iscrowd, double *o ) {
-  // *o is pointer to the output location
-  siz g, d; BB db, gb; 
-  int crowd;
-  // run bounding box IoU first
-  db=malloc(sizeof(double)*m*4); 
-  rleToBbox(dt,db,m);
-  gb=malloc(sizeof(double)*n*4); 
-  rleToBbox(gt,gb,n);
-  bbIou(db,gb,m,n,iscrowd,o); 
-  // free up memory
-  free(db); 
-  free(gb);
-  // for every encoded mask in gts and dts
-  for( g=0; g<n; g++ ){
-    for( d=0; d<m; d++ ){
-      if(o[g*m+d]>0) {
-        crowd = (iscrowd != NULL && iscrowd[g]);
-        // sizes must match between dt and gt before comparison
-        if(dt[d].h!=gt[g].h || dt[d].w!=gt[g].w) { 
-          o[g*m+d]=-1; 
-          continue; 
-        }
-        siz ka, kb, a, b; 
-        uint c, ca, cb, ct, i, u; 
-        int va, vb;
-        ca=dt[d].cnts[0]; 
-        ka=dt[d].m; 
-        va=vb=0;
-        cb=gt[g].cnts[0]; 
-        kb=gt[g].m; 
-        a=b=1; 
-        i=u=0; 
-        ct=1;
-        while( ct>0 ) {
-          c=umin(ca,cb); 
-          if(va||vb) { 
-            u+=c; 
-            if(va&&vb){
-              i+=c; 
-            } 
-          } 
-          ct=0;
-          ca-=c; 
-          if(!ca && a<ka) {
-            ca=dt[d].cnts[a++]; 
-            va=!va;
-          } 
-          ct+=ca;
-          cb-=c; 
-          if(!cb && b<kb) {
-            cb=gt[g].cnts[b++]; 
-            vb=!vb;
-          } 
-          ct+=cb;
-        }
-        if(i==0){
-          u=1;
-        } else if(crowd) {
-          rleArea(dt+d,1,&u);
-        }
-        o[g*m+d] = (double)i/(double)u;
-      }
+  printf("in rleIou");
+  siz g, d; BB db, gb; int crowd;
+  db=malloc(sizeof(double)*m*4); rleToBbox(dt,db,m);
+  gb=malloc(sizeof(double)*n*4); rleToBbox(gt,gb,n);
+  bbIou(db,gb,m,n,iscrowd,o); free(db); free(gb);
+  for( g=0; g<n; g++ ) for( d=0; d<m; d++ ) if(o[g*m+d]>0) {
+    crowd=iscrowd!=NULL && iscrowd[g];
+    if(dt[d].h!=gt[g].h || dt[d].w!=gt[g].w) { o[g*m+d]=-1; continue; }
+    siz ka, kb, a, b; uint c, ca, cb, ct, i, u; int va, vb;
+    ca=dt[d].cnts[0]; ka=dt[d].m; va=vb=0;
+    cb=gt[g].cnts[0]; kb=gt[g].m; a=b=1; i=u=0; ct=1;
+    while( ct>0 ) {
+      printf("ct = %d", ct);
+      c=umin(ca,cb); if(va||vb) { u+=c; if(va&&vb) i+=c; } ct=0;
+      ca-=c; if(!ca && a<ka) { ca=dt[d].cnts[a++]; va=!va; } ct+=ca;
+      cb-=c; if(!cb && b<kb) { cb=gt[g].cnts[b++]; vb=!vb; } ct+=cb;
     }
+    if(i==0) u=1; else if(crowd) rleArea(dt+d,1,&u);
+    o[g*m+d] = (double)i/(double)u;
   }
 }
+
 void bbIou( BB dt, BB gt, siz m, siz n, byte *iscrowd, double *o ) {
   double h, w, i, u, ga, da; siz g, d; int crowd;
   for( g=0; g<n; g++ ) {
