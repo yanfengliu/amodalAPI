@@ -97,7 +97,8 @@ class AmodalEval:
             gt = [_ for cId in p.catIds for _ in self._gts[imgId,cId]]
             dt = [_ for cId in p.catIds for _ in self._dts[imgId,cId]]
         # for multiple gt/annotator case, use gt[0] for now.
-        dt = dt[0]['regions']; gt = gt[0]['regions']
+        dt = dt[0]['regions']
+        gt = gt[0]['regions']
         dt = sorted(dt, key=lambda x: -x['score'])
         if len(dt) > p.maxDets[-1]:
             dt=dt[0:p.maxDets[-1]]

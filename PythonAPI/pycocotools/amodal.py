@@ -238,7 +238,7 @@ class Amodal(COCO):
                 polygons.append(Polygon(poly, True, alpha=0.2))
                 color.append(c)
             else:
-                #mask
+                # mask
                 mm = mask.decode([ann['segmentation']])
                 img = np.ones( (mm.shape[0], mm.shape[1], 3) )
                 color_mask = c

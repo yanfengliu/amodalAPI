@@ -47,19 +47,19 @@ def filterDtFile(resFiles, amodalGtImgIds):
     id = 0
     ann_id = 0
     for i, file in enumerate(resFiles):
-        print "processing json %d in total %d" %(i+1, len(resFiles))
+        print("processing json {} in total {}".format(i+1, len(resFiles)))
         anns = json.load(open(file))
         for ann in anns:
             image_id = ann['image_id']
             if image_id in amodalGtImgIds:
-                id = id + 1
                 if image_id not in amodalDt:
                     amodalDt[image_id] = createAmodalAnn(image_id, ann_id)
                     ann_id = ann_id + 1
                 region = createAmodalRegion(ann, id)
+                id = id + 1
                 amodalDt[image_id]['regions'].append(region)
     res = []
-    for image_id, ann in amodalDt.iteritems():
+    for ann in amodalDt.items():
         res.append(ann)
     return res
 
